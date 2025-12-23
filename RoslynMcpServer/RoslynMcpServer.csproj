@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -12,12 +12,12 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
     <PackageReference Include="ModelContextProtocol" Version="0.3.0-preview.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    
+
     <!-- Roslyn packages -->
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.8.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.8.0" />
     <PackageReference Include="Microsoft.Build.Locator" Version="1.6.10" />
-    
+
     <!-- Additional utilities -->
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.6" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.6" />

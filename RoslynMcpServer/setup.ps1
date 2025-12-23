@@ -40,9 +40,19 @@ Write-Host
 Write-Host "1. Checking .NET installation..." -ForegroundColor Yellow
 try {
     $dotnetVersion = dotnet --version
+    command = "dotnet"
+    # Dynamically determine the .NET version (e.g., "x.y.z" → use "netx.y" folder)
+    $dotnetVersionOut = (& dotnet --version) -replace "`r`n", ""
+    $dotnetMajorMinor = ""
+    if ($dotnetVersionOut -match "^(\d+)\.(\d+)\.") {
+        $dotnetMajorMinor = "net$($Matches[1]).$($Matches[2])"
+    } else {
+        # Fallback: assume default target framework
+        $dotnetMajorMinor = "net9.0"
+    }
     Write-Host "   [OK] .NET SDK found: $dotnetVersion" -ForegroundColor Green
 } catch {
-    Write-Host "   [ERROR] .NET SDK not found. Please install .NET 8.0 SDK or later." -ForegroundColor Red
+    Write-Host "   [ERROR] .NET SDK not found. Please install .NET 9.0 SDK or later." -ForegroundColor Red
     exit 1
 }
 
@@ -89,8 +99,7 @@ if (-not (Test-Path $configDir)) {
 $config = @{
     mcpServers = @{
         "roslyn-code-navigator" = @{
-            command = "dotnet"
-            args = @(Join-Path $projectPath "bin\Release\net8.0\RoslynMcpServer.dll")
+            args = @(Join-Path $projectPath "bin\Release\$dotnetMajorMinor\RoslynMcpServer.dll")
             cwd = $projectPath
             env = @{
                 DOTNET_ENVIRONMENT = "Production"
@@ -132,7 +141,7 @@ Write-Host
 Write-Host "4. Testing server startup..." -ForegroundColor Yellow
 
 # MCP servers run via stdio, so we test by checking if the executable exists and can be invoked
-$dllPath = Join-Path $projectPath "bin\Release\net8.0\RoslynMcpServer.dll"
+$dllPath = Join-Path $projectPath "bin\Release\$dotnetMajorMinor\RoslynMcpServer.dll"
 if (Test-Path $dllPath) {
     Write-Host "   [OK] Server executable found" -ForegroundColor Green
 
@@ -157,7 +166,7 @@ if (Test-Path $dllPath) {
     }
 } else {
     Write-Host "   [WARNING] Release build not found, using Debug build" -ForegroundColor Yellow
-    $dllPath = Join-Path $projectPath "bin\Debug\net8.0\RoslynMcpServer.dll"
+    $dllPath = Join-Path $projectPath "bin\Debug\$dotnetMajorMinor\RoslynMcpServer.dll"
     if (Test-Path $dllPath) {
         Write-Host "   [OK] Server executable found" -ForegroundColor Green
     } else {
