@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.Extensions.Logging;
 using RoslynMcpServer.Models;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace RoslynMcpServer.Services
 {
@@ -10,13 +11,53 @@ namespace RoslynMcpServer.Services
     {
         private readonly ILogger<CodeAnalysisService> _logger;
         private readonly ConcurrentDictionary<string, Solution> _solutionCache;
-        private readonly MSBuildWorkspace _workspace;
+        private MSBuildWorkspace? _workspace;
+        private readonly object _workspaceLock = new object();
 
         public CodeAnalysisService(ILogger<CodeAnalysisService> logger)
         {
             _logger = logger;
             _solutionCache = new ConcurrentDictionary<string, Solution>();
-            _workspace = MSBuildWorkspace.Create();
+            // Lazy initialization of workspace to avoid assembly loading issues
+        }
+
+        private MSBuildWorkspace GetOrCreateWorkspace()
+        {
+            if (_workspace != null)
+                return _workspace;
+
+            lock (_workspaceLock)
+            {
+                if (_workspace != null)
+                    return _workspace;
+
+                try
+                {
+                    // Create workspace with properties that help with .NET 9.0 compatibility
+                    _workspace = MSBuildWorkspace.Create(new Dictionary<string, string>
+                    {
+                        { "Configuration", "Debug" },
+                        { "Platform", "AnyCPU" }
+                    });
+                    _logger.LogInformation("MSBuildWorkspace created successfully");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to create MSBuildWorkspace with properties, retrying with default settings");
+                    try
+                    {
+                        _workspace = MSBuildWorkspace.Create();
+                        _logger.LogInformation("MSBuildWorkspace created with default settings");
+                    }
+                    catch (Exception ex2)
+                    {
+                        _logger.LogError(ex2, "Failed to create MSBuildWorkspace even with default settings");
+                        throw new InvalidOperationException("Unable to create MSBuildWorkspace. Ensure MSBuild is properly registered.", ex2);
+                    }
+                }
+
+                return _workspace;
+            }
         }
 
         public async Task<Solution> GetSolutionAsync(string solutionPath)
@@ -39,7 +80,8 @@ namespace RoslynMcpServer.Services
             try
             {
                 _logger.LogInformation("Loading solution: {SolutionPath}", normalizedPath);
-                var solution = await _workspace.OpenSolutionAsync(normalizedPath);
+                var workspace = GetOrCreateWorkspace();
+                var solution = await workspace.OpenSolutionAsync(normalizedPath);
                 _solutionCache[normalizedPath] = solution;
                 _logger.LogInformation("Solution loaded successfully: {ProjectCount} projects", solution.Projects.Count());
                 return solution;
